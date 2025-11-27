@@ -1,0 +1,2 @@
+ID_Transaksi,Tanggal_Permintaan,Operator,Nama_Barang,Jumlah,Satuan,Harga_per_Satuan,Total_Harga,Status,Tanggal_Persetujuan,Admin,Nomor_Telepon,Jarak_Km,Ongkos_Kirim,Harga_Barang
+1229,2025-11-27 12:59:55,Heru,Minyak,12,liter,15000,180000,Disetujui,2025-11-27 13:01:58,LiverPool,8323232121,12.0,0.0,180000.0

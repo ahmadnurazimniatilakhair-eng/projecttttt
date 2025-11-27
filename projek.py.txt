@@ -1,0 +1,590 @@
+import pandas as pd
+from datetime import datetime
+from tabulate import tabulate
+import random
+
+# === Inisialisasi File CSV ===
+try:
+    pd.read_csv('data_gudang.csv')
+except FileNotFoundError:
+    df = pd.DataFrame({'Kategori': [], 'Nama Barang': [], 'Jumlah': [], 'Satuan': [], 'Harga per Satuan': []})
+    df.to_csv('data_gudang.csv', index=False)
+
+# === Inisialisasi File Histori ===
+try:
+    histori_df = pd.read_csv('histori_gudang.csv')
+    # Cek apakah kolom baru sudah ada, jika tidak tambahkan
+    if 'Harga per Satuan' not in histori_df.columns:
+        histori_df['Harga per Satuan'] = 0
+    if 'Total Harga' not in histori_df.columns:
+        histori_df['Total Harga'] = 0
+    histori_df.to_csv('histori_gudang.csv', index=False)
+except FileNotFoundError:
+    histori_df = pd.DataFrame({
+        'Tanggal': [],
+        'Nama Barang': [],
+        'Jumlah': [],
+        'Satuan': [],
+        'Harga per Satuan': [],
+        'Total Harga': [],
+        'Keterangan': []
+    })
+    histori_df.to_csv('histori_gudang.csv', index=False)
+
+# === Inisialisasi File Permintaan Transaksi ===
+try:
+    permintaan_df = pd.read_csv('permintaan_transaksi.csv')
+    # Cek apakah kolom baru sudah ada, jika tidak tambahkan
+    if 'Harga_per_Satuan' not in permintaan_df.columns:
+        permintaan_df['Harga_per_Satuan'] = 0
+    if 'Total_Harga' not in permintaan_df.columns:
+        permintaan_df['Total_Harga'] = 0
+    permintaan_df.to_csv('permintaan_transaksi.csv', index=False)
+except FileNotFoundError:
+    permintaan_df = pd.DataFrame({
+        'ID_Transaksi': [],
+        'Tanggal_Permintaan': [],
+        'Operator': [],
+        'Nama_Barang': [],
+        'Jumlah': [],
+        'Satuan': [],
+        'Harga_per_Satuan': [],
+        'Total_Harga': [],
+        'Status': [],
+        'Tanggal_Persetujuan': [],
+        'Admin': []
+    })
+    permintaan_df.to_csv('permintaan_transaksi.csv', index=False)
+
+# === Inisialisasi File Login ===
+try:
+    login_df = pd.read_csv('data_login.csv')
+except FileNotFoundError:
+    # Data default admin
+    login_data = {
+        'username': ['admin123', 'LiverPool'],
+        'password': ['admin123', 'YNWA'],
+        'kategori': ['admin', 'admin']
+    }
+    login_df = pd.DataFrame(login_data)
+    login_df.to_csv('data_login.csv', index=False)
+
+# === FUNGSI GENERATE ID RANDOM ===
+def generate_random_id():
+    """Generate random ID transaksi yang unik"""
+    permintaan_df = pd.read_csv('permintaan_transaksi.csv')
+    
+    while True:
+        # Generate random number antara 1000 dan 9999
+        random_id = random.randint(1000, 9999)
+        
+        # Cek apakah ID sudah digunakan
+        if permintaan_df.empty or random_id not in permintaan_df['ID_Transaksi'].values:
+            return random_id
+
+# === FUNGSI LOGIN TERPUSAT ===
+def login():
+    login_df = pd.read_csv('data_login.csv')
+    username = input("Masukkan username: ")
+    password = input("Masukkan password: ")
+
+    if username in login_df['username'].values:
+        user_data = login_df[login_df['username'] == username].iloc[0]
+        if user_data['password'] == password:
+            kategori = user_data['kategori']
+            print(f"\nLogin berhasil! Selamat datang, {username} ({kategori})\n")
+            return username, kategori
+        else:
+            print("Password salah!\n")
+            return None, None
+    else:
+        print("Username tidak ditemukan!\n")
+        return None, None
+
+# === FUNGSI REGISTRASI PELANGGAN ===
+def registrasi_pelanggan():
+    login_df = pd.read_csv('data_login.csv')
+    
+    print("\n=== REGISTRASI PELANGGAN ===")
+    username = input("Masukkan username baru: ")
+    
+    # Cek apakah username sudah ada
+    if username in login_df['username'].values:
+        print("Username sudah digunakan!\n")
+        return False
+    
+    password = input("Masukkan password: ")
+    
+    # Tambahkan user baru dengan kategori pelanggan
+    data_baru = {
+        'username': [username],
+        'password': [password],
+        'kategori': ['pelanggan']
+    }
+    
+    login_df = pd.concat([login_df, pd.DataFrame(data_baru)], ignore_index=True)
+    login_df.to_csv('data_login.csv', index=False)
+    print(f"\nRegistrasi berhasil! Akun {username} telah dibuat.\n")
+    return True
+
+# === MENU UTAMA ===
+def menu_utama():
+    while True:
+        print("="*40)
+        print("Selamat datang di Gudang Barokah")
+        print("="*40)
+        print("Anda sebagai apa: ")
+        print("1. Admin")
+        print("2. Pelanggan")
+        print("3. Registrasi Pelanggan")
+        print("4. Keluar")
+        pilihan = input("Masukkan pilihan: ")
+
+        if pilihan == '1':
+            username, kategori = login()
+            if username and kategori == 'admin':
+                menu_admin(username)
+            else:
+                print('username atau password tidak valid!')
+        elif pilihan == '2':
+            username, kategori = login()
+            if username and kategori == 'pelanggan':
+                menu_operator(username)
+            else:
+                print('username atau password tidak vaid!')
+        elif pilihan == '3':
+            registrasi_pelanggan()
+        elif pilihan == '4':
+            print("Terima kasih! Program selesai.")
+            break
+        else:
+            print("Pilihan tidak valid!\n")
+
+def menu_admin(name_admin):
+    while True:
+        print('''Menu Admin:
+1. Tampilkan Data Barang
+2. Barang Masuk Gudang (Tambah Stok)
+3. Barang Keluar Gudang (Kurangi Stok Universal)
+4. Lihat Histori Barang
+5. Kelola Permintaan Transaksi
+6. Kembali ke Menu Utama
+''')
+        jawaban_admin = input("Masukkan pilihan: ")
+
+        if jawaban_admin == '1':
+            tampilkan_data()
+        elif jawaban_admin == '2':
+            barang_masuk()
+        elif jawaban_admin == '3':
+            barang_keluar()
+        elif jawaban_admin == '4':
+            tampilkan_histori()
+        elif jawaban_admin == '5':
+            kelola_permintaan_transaksi(name_admin)
+        elif jawaban_admin == '6':
+            break
+        else:
+            print("Pilihan tidak valid!\n")
+
+def menu_operator(name_operator):
+    while True:
+        print('''Menu Pelanggan:
+1. Tampilkan Menu Barang
+2. Buat Permintaan Transaksi
+3. Lihat Status Permintaan
+4. Kembali ke Menu Utama
+''')
+        jawaban_operator = input("Masukkan pilihan: ")
+
+        if jawaban_operator == '1':
+            tampilkan_data()
+        elif jawaban_operator == '2':
+            buat_permintaan_transaksi(name_operator)
+        elif jawaban_operator == '3':
+            lihat_status_permintaan(name_operator)
+        elif jawaban_operator == '4':
+            break
+        else:
+            print("Pilihan tidak valid!\n")
+
+# === FUNGSI CRUD DATA ===
+def tampilkan_data():
+    df = pd.read_csv('data_gudang.csv')
+    if df.empty:
+        print("\nBelum ada data barang di gudang.\n")
+    else:
+        print("\nData Barang di Gudang:")
+        # Format harga untuk tampilan yang lebih baik
+        df_display = df.copy()
+        if 'Harga per Satuan' in df_display.columns:
+            df_display['Harga per Satuan'] = df_display['Harga per Satuan'].apply(lambda x: f"Rp {x:,}" if pd.notna(x) else "Rp 0")
+        print(tabulate(df_display, headers='keys', tablefmt='grid', showindex=False))
+        print()
+
+# === FUNGSI BARU: BARANG MASUK ===
+def barang_masuk():
+    df = pd.read_csv('data_gudang.csv')
+    
+    print("\n=== BARANG MASUK GUDANG ===")
+    nama = input("Masukkan nama barang: ")
+    
+    # Cek barang sudah ada di gudang
+    if nama in df['Nama Barang'].values:
+        # Jika barang sudah ada, tambah stok
+        jumlah_tambah = int(input("Masukkan jumlah barang masuk: "))
+        df.loc[df['Nama Barang'] == nama, 'Jumlah'] += jumlah_tambah
+        df.to_csv('data_gudang.csv', index=False)
+        
+        # Ambil harga per satuan dari data barang
+        harga_satuan = 0
+        if 'Harga per Satuan' in df.columns:
+            harga_satuan = df.loc[df['Nama Barang'] == nama, 'Harga per Satuan'].values[0]
+        total_harga = jumlah_tambah * harga_satuan
+        
+        catat_histori(nama, jumlah_tambah, df.loc[df['Nama Barang'] == nama, 'Satuan'].values[0], 
+                     harga_satuan, total_harga, "Barang Masuk")
+        print(f"\nBarang '{nama}' bertambah sebanyak {jumlah_tambah}! ")
+    else:
+        # Jika barang belum ada, buat data baru
+        print("Barang belum ada di gudang. Membuat data baru...")
+        kategori = input("Masukkan kategori (Bahan Baku / Produk Jadi): ")
+        jumlah = int(input("Masukkan jumlah barang: "))
+        satuan = input("Masukkan satuan (kg, liter, dll): ")
+        harga = int(input("Masukkan harga per satuan: "))
+
+        data_baru = {
+            'Kategori': kategori, 
+            'Nama Barang': nama, 
+            'Jumlah': jumlah, 
+            'Satuan': satuan,
+            'Harga per Satuan': harga
+        }
+        df = pd.concat([df, pd.DataFrame([data_baru])], ignore_index=True)
+        df.to_csv('data_gudang.csv', index=False)
+        
+        total_harga = jumlah * harga
+        catat_histori(nama, jumlah, satuan, harga, total_harga, "Barang Masuk - Data Baru")
+        print(f"\nData barang '{nama}' berhasil ditambahkan! Total harga: Rp {total_harga:,}\n")
+
+# === FUNGSI BARU: BARANG KELUAR ===
+def barang_keluar():
+    df = pd.read_csv('data_gudang.csv')
+    
+    print("\n=== BARANG KELUAR GUDANG ===")
+    nama = input("Masukkan nama barang yang keluar: ")
+
+    if nama in df['Nama Barang'].values:
+        jumlah_keluar = int(input("Masukkan jumlah barang keluar: "))
+        stok = df.loc[df['Nama Barang'] == nama, 'Jumlah'].values[0]
+        
+        harga_satuan = 0
+        if 'Harga per Satuan' in df.columns:
+            harga_satuan = df.loc[df['Nama Barang'] == nama, 'Harga per Satuan'].values[0]
+        total_harga = jumlah_keluar * harga_satuan
+
+        if jumlah_keluar > stok:
+            print(f"\nStok tidak cukup! Stok tersisa: {stok}\n")
+        else:
+            df.loc[df['Nama Barang'] == nama, 'Jumlah'] -= jumlah_keluar
+            df.to_csv('data_gudang.csv', index=False)
+            catat_histori(nama, jumlah_keluar, df.loc[df['Nama Barang'] == nama, 'Satuan'].values[0], 
+                         harga_satuan, total_harga, "Barang Keluar Universal")
+            print(f"\nBarang '{nama}' keluar sebanyak {jumlah_keluar}! Total harga: Rp {total_harga:,}\n")
+    else:
+        print("\nBarang tidak ditemukan!\n")
+
+# === FUNGSI BARU: CATAT HISTORI ===
+def catat_histori(nama, jumlah, satuan, harga_satuan, total_harga, keterangan):
+    histori_df = pd.read_csv('histori_gudang.csv')
+    data_histori = {
+        'Tanggal': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'Nama Barang': nama,
+        'Jumlah': jumlah,
+        'Satuan': satuan,
+        'Harga per Satuan': harga_satuan,
+        'Total Harga': total_harga,
+        'Keterangan': keterangan
+    }
+    histori_df = pd.concat([histori_df, pd.DataFrame([data_histori])], ignore_index=True)
+    histori_df.to_csv('histori_gudang.csv', index=False)
+
+# === FUNGSI BARU: TAMPILKAN HISTORI ===
+def tampilkan_histori():
+    histori_df = pd.read_csv('histori_gudang.csv')
+    if histori_df.empty:
+        print("\nBelum ada histori transaksi.\n")
+    else:
+        print("\nHistori Barang Gudang:")
+        # Format angka untuk tampilan yang lebih baik
+        histori_df_display = histori_df.copy()
+        
+        # Cek dan format kolom harga jika ada
+        if 'Harga per Satuan' in histori_df_display.columns:
+            histori_df_display['Harga per Satuan'] = histori_df_display['Harga per Satuan'].apply(
+                lambda x: f"Rp {int(x):,}" if pd.notna(x) and x != '' else "Rp 0"
+            )
+        else:
+            # Jika kolom tidak ada, tambahkan kolom kosong
+            histori_df_display['Harga per Satuan'] = "Rp 0"
+            
+        if 'Total Harga' in histori_df_display.columns:
+            histori_df_display['Total Harga'] = histori_df_display['Total Harga'].apply(
+                lambda x: f"Rp {int(x):,}" if pd.notna(x) and x != '' else "Rp 0"
+            )
+        else:
+            # Jika kolom tidak ada, tambahkan kolom kosong
+            histori_df_display['Total Harga'] = "Rp 0"
+            
+        print(tabulate(histori_df_display, headers='keys', tablefmt='grid', showindex=False))
+        print()
+
+# === FUNGSI TRANSAKSI BARU ===
+def buat_permintaan_transaksi(operator_name):
+    df = pd.read_csv('data_gudang.csv')
+    permintaan_df = pd.read_csv('permintaan_transaksi.csv')
+    
+    tampilkan_data()
+    nama_barang = input("Masukkan nama barang yang ingin diminta: ")
+    
+    if nama_barang in df['Nama Barang'].values:
+        stok = df.loc[df['Nama Barang'] == nama_barang, 'Jumlah'].values[0]
+        satuan = df.loc[df['Nama Barang'] == nama_barang, 'Satuan'].values[0]
+        
+        harga_satuan = 0
+        if 'Harga per Satuan' in df.columns:
+            harga_satuan = df.loc[df['Nama Barang'] == nama_barang, 'Harga per Satuan'].values[0]
+        
+        print(f"\nStok tersedia: {stok} {satuan}")
+        print(f"Harga per {satuan}: Rp {harga_satuan:,}")
+        jumlah = int(input("Masukkan jumlah yang diminta: "))
+        
+        if jumlah > stok:
+            print(f"\nStok tidak cukup! Stok tersisa: {stok}\n")
+            return
+        
+        # Input nomor telepon
+        nomor_telepon = input("Masukkan nomor telepon Anda: ")
+        
+        # Input jarak dan hitung ongkos kirim
+        while True:
+            try:
+                lokasi = int(input("(maksimal 30km) Masukkan jarak gudang dengan toko anda (Km): "))
+                
+                if lokasi >= 0 and lokasi <= 15:
+                    ongkos_kirim = 0
+                    print("Ongkos kirim: Gratis (Rp 0)")
+                    break
+                elif lokasi >= 16 and lokasi <= 20:
+                    ongkos_kirim = 15000
+                    print(f"Ongkos kirim: Rp {ongkos_kirim:,}")
+                    break
+                elif lokasi >= 21 and lokasi <= 30:
+                    ongkos_kirim = 20000
+                    print(f"Ongkos kirim: Rp {ongkos_kirim:,}")
+                    break
+                else:
+                    print('Maaf, jangkauan kami tidak mencakup daerah Anda (maksimal 30 Km)')
+                    return
+            except ValueError:
+                print("Input tidak valid! Masukkan angka untuk jarak.")
+                break
+        
+        # Hitung total harga
+        harga_barang = jumlah * harga_satuan
+        total_harga = harga_barang + ongkos_kirim
+        
+        print(f"\nRincian Biaya:")
+        print(f"Harga barang: Rp {harga_barang:,}")
+        print(f"Ongkos kirim: Rp {ongkos_kirim:,}")
+        print(f"Total harga: Rp {total_harga:,}")
+        
+        # Konfirmasi
+        konfirmasi = input("\nApakah Anda yakin? (y/n): ").lower()
+        if konfirmasi != 'y':
+            print("Permintaan dibatalkan.\n")
+            return
+        
+        # Generate random ID yang unik
+        id_transaksi = generate_random_id()
+        
+        data_permintaan = {
+            'ID_Transaksi': id_transaksi,
+            'Tanggal_Permintaan': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'Operator': operator_name,
+            'Nomor_Telepon': nomor_telepon,
+            'Jarak_Km': lokasi,
+            'Ongkos_Kirim': ongkos_kirim,
+            'Nama_Barang': nama_barang,
+            'Jumlah': jumlah,
+            'Satuan': satuan,
+            'Harga_per_Satuan': harga_satuan,
+            'Harga_Barang': harga_barang,
+            'Total_Harga': total_harga,
+            'Status': 'Menunggu Persetujuan',
+            'Tanggal_Persetujuan': '',
+            'Admin': ''
+        }
+        
+        permintaan_df = pd.concat([permintaan_df, pd.DataFrame([data_permintaan])], ignore_index=True)
+        permintaan_df.to_csv('permintaan_transaksi.csv', index=False)
+        print(f"\nPermintaan transaksi berhasil dibuat!")
+        print(f"ID Transaksi: {id_transaksi}")
+        print(f"Nomor Telepon: {nomor_telepon}")
+        print(f"Jarak: {lokasi} Km")
+        print(f"Ongkos kirim: Rp {ongkos_kirim:,}")
+        print(f"Total harga: Rp {total_harga:,}\n")
+    else:
+        print("\nBarang tidak ditemukan!\n")
+
+def lihat_status_permintaan(operator_name):
+    permintaan_df = pd.read_csv('permintaan_transaksi.csv')
+    
+    if permintaan_df.empty:
+        print("\nBelum ada permintaan transaksi.\n")
+        return
+    
+    permintaan_operator = permintaan_df[permintaan_df['Operator'] == operator_name]
+    
+    if permintaan_operator.empty:
+        print("\nBelum ada permintaan transaksi dari Anda.\n")
+    else:
+        print(f"\nStatus Permintaan Transaksi - {operator_name}:")
+        # Format angka untuk tampilan yang lebih baik
+        permintaan_display = permintaan_operator.copy()
+        
+        # Cek dan format kolom harga jika ada
+        if 'Harga_per_Satuan' in permintaan_display.columns:
+            permintaan_display['Harga_per_Satuan'] = permintaan_display['Harga_per_Satuan'].apply(
+                lambda x: f"Rp {int(x):,}" if pd.notna(x) and x != '' else "Rp 0"
+            )
+        else:
+            permintaan_display['Harga_per_Satuan'] = "Rp 0"
+            
+        if 'Total_Harga' in permintaan_display.columns:
+            permintaan_display['Total_Harga'] = permintaan_display['Total_Harga'].apply(
+                lambda x: f"Rp {int(x):,}" if pd.notna(x) and x != '' else "Rp 0"
+            )
+        else:
+            permintaan_display['Total_Harga'] = "Rp 0"
+            
+        print(tabulate(permintaan_display, headers='keys', tablefmt='grid', showindex=False))
+        print()
+
+def kelola_permintaan_transaksi(admin_name):
+    permintaan_df = pd.read_csv('permintaan_transaksi.csv')
+    df = pd.read_csv('data_gudang.csv')
+    
+    # Filter hanya permintaan yang menunggu persetujuan
+    permintaan_pending = permintaan_df[permintaan_df['Status'] == 'Menunggu Persetujuan']
+    
+    if permintaan_pending.empty:
+        print("\nTidak ada permintaan transaksi yang menunggu persetujuan.\n")
+        return
+    
+    print("\nPermintaan Transaksi yang Menunggu Persetujuan:")
+    # Format angka untuk tampilan yang lebih baik
+    permintaan_display = permintaan_pending.copy()
+    
+    # Cek dan format kolom harga jika ada
+    if 'Harga_per_Satuan' in permintaan_display.columns:
+        permintaan_display['Harga_per_Satuan'] = permintaan_display['Harga_per_Satuan'].apply(
+            lambda x: f"Rp {int(x):,}" if pd.notna(x) and x != '' else "Rp 0"
+        )
+    else:
+        permintaan_display['Harga_per_Satuan'] = "Rp 0"
+        
+    if 'Total_Harga' in permintaan_display.columns:
+        permintaan_display['Total_Harga'] = permintaan_display['Total_Harga'].apply(
+            lambda x: f"Rp {int(x):,}" if pd.notna(x) and x != '' else "Rp 0"
+        )
+    else:
+        permintaan_display['Total_Harga'] = "Rp 0"
+        
+    print(tabulate(permintaan_display, headers='keys', tablefmt='grid', showindex=False))
+    print()
+    
+    try:
+        id_transaksi = int(input("Masukkan ID Transaksi yang ingin diproses (0 untuk batal): "))
+        
+        if id_transaksi == 0:
+            return
+        
+        if id_transaksi not in permintaan_pending['ID_Transaksi'].values:
+            print("\nID Transaksi tidak valid!\n")
+            return
+        
+        transaksi = permintaan_df[permintaan_df['ID_Transaksi'] == id_transaksi].iloc[0]
+        nama_barang = transaksi['Nama_Barang']
+        jumlah = transaksi['Jumlah']
+        
+        # Ambil total harga jika ada, jika tidak hitung manual
+        if 'Total_Harga' in transaksi and transaksi['Total_Harga']:
+            total_harga = transaksi['Total_Harga']
+        else:
+            harga_satuan = transaksi['Harga_per_Satuan'] if 'Harga_per_Satuan' in transaksi else 0
+            total_harga = jumlah * harga_satuan
+        
+        # Cek stok terkini
+        stok_sekarang = df.loc[df['Nama Barang'] == nama_barang, 'Jumlah'].values[0]
+        
+        print(f"\nDetail Transaksi:")
+        print(f"ID Transaksi: {id_transaksi}")
+        print(f"Operator: {transaksi['Operator']}")
+        print(f"Barang: {nama_barang}")
+        print(f"Jumlah Diminta: {jumlah}")
+        print(f"Stok Tersedia: {stok_sekarang}")
+        print(f"Total Harga: Rp {total_harga:,}")
+        
+        if jumlah > stok_sekarang:
+            print(f"\nPERINGATAN: Stok tidak mencukupi! Stok tersisa: {stok_sekarang}")
+        
+        print("\nPilihan:")
+        print("1. Setujui Permintaan")
+        print("2. Tolak Permintaan")
+        print("3. Batal")
+        
+        pilihan = input("Masukkan pilihan: ")
+        
+        if pilihan == '1':
+            if jumlah > stok_sekarang:
+                print("\nTidak dapat menyetujui: Stok tidak mencukupi!\n")
+                return
+            
+            # Kurangi stok
+            df.loc[df['Nama Barang'] == nama_barang, 'Jumlah'] -= jumlah
+            df.to_csv('data_gudang.csv', index=False)
+            
+            # Update status permintaan
+            permintaan_df.loc[permintaan_df['ID_Transaksi'] == id_transaksi, 'Status'] = 'Disetujui'
+            permintaan_df.loc[permintaan_df['ID_Transaksi'] == id_transaksi, 'Tanggal_Persetujuan'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            permintaan_df.loc[permintaan_df['ID_Transaksi'] == id_transaksi, 'Admin'] = admin_name
+            permintaan_df.to_csv('permintaan_transaksi.csv', index=False)
+            
+            # Catat di histori
+            harga_satuan_histori = transaksi['Harga_per_Satuan'] if 'Harga_per_Satuan' in transaksi else 0
+            catat_histori(nama_barang, jumlah, transaksi['Satuan'], harga_satuan_histori, 
+                         total_harga, f"Transaksi Disetujui - ID: {id_transaksi}")
+            
+            print(f"\nPermintaan transaksi ID {id_transaksi} berhasil disetujui!\n")
+            print(f"Total transaksi: Rp {total_harga:,}\n")
+            
+        elif pilihan == '2':
+            # Update status permintaan
+            permintaan_df.loc[permintaan_df['ID_Transaksi'] == id_transaksi, 'Status'] = 'Ditolak'
+            permintaan_df.loc[permintaan_df['ID_Transaksi'] == id_transaksi, 'Tanggal_Persetujuan'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            permintaan_df.loc[permintaan_df['ID_Transaksi'] == id_transaksi, 'Admin'] = admin_name
+            permintaan_df.to_csv('permintaan_transaksi.csv', index=False)
+            
+            print(f"\nPermintaan transaksi ID {id_transaksi} ditolak!\n")
+            
+        elif pilihan == '3':
+            print("\nProses dibatalkan.\n")
+        else:
+            print("\nPilihan tidak valid!\n")
+            
+    except ValueError:
+        print("\nInput tidak valid! Masukkan angka.\n")
+
+# === JALANKAN PROGRAM ===
+menu_utama()
